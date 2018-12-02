@@ -1,12 +1,28 @@
-version: '2'
+version: '2.3'
 services:
   openfire:
-    image: gizmotronic/openfire:4.2.3
+    restart: always
+    image: openfire:latest
     ports:
-      - "9090:9090/tcp"
-      - "9091:9091/tcp"
+      - "127.0.0.1:9090:9090/tcp"
+      - "127.0.0.1:9091:9091/tcp"
       - "5222:5222/tcp"
       - "7777:7777/tcp"
     volumes:
-      - /srv/docker/openfire/data:/var/lib/openfire
-      - /srv/docker/openfire/logs:/var/log/openfire
+      - /srv/docker/volumes/openfire/data:/var/lib/openfire
+      - /srv/docker/volumes/openfire/logs:/var/log/openfire
+      #Modify for tls cert exchange to the container.
+      #The host folder MUST only include the openfire certificate and key to work with openfires' Certificate Manager plugin  
+      - /srv/docker/volumes/openfire/static:/var/static:ro
+
+  openfire-db:
+    container_name: openfire-db
+    image: mariadb
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    restart: always
+    volumes:
+      - /srv/docker/volumes/openfire/db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=secret
+    env_file:
+      - ./db.env
