@@ -1,5 +1,5 @@
 FROM ubuntu:16.04
-MAINTAINER flux@cyb3rwr3ck.net
+LABEL maintainer="flux@cyb3rwr3ck.net"
 
 ENV OPENFIRE_VERSION=4.2.3 \
     OPENFIRE_USER=openfire \
@@ -21,9 +21,6 @@ RUN apt-get update \
  && rm -rf openfire_${OPENFIRE_VERSION}_all.deb \
  && rm -rf /var/lib/apt/lists/* \
  && rm -rf /var/cache/oracle-jdk8-installer
-
-#create folders for bind mounts
-RUN mkdir /var/static
 
 COPY entrypoint.sh /sbin/entrypoint.sh
 RUN chmod 755 /sbin/entrypoint.sh
