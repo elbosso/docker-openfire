@@ -1,19 +1,36 @@
-version: '2.3'
+version: '3'
 services:
-  openfire:
+  openfire-app:
+    container_name: openfire-app
     restart: always
-    image: openfire:latest
+    build: ./openfire/app
+    # image: openfire:latest
+    # Alternatively set the image to a locally built image.
+    # In order for this to work, switch to the directory
+    # ./openfire/app and build with "docker build -t openfire ."
     ports:
-      - "127.0.0.1:9090:9090/tcp"
-      - "127.0.0.1:9091:9091/tcp"
-      - "5222:5222/tcp"
-      - "7777:7777/tcp"
+      - "5222:5222/tcp" # XMPP Client Connection
+      - "5223:5223/tcp" # XMPP Client Connection over SSL
+      - "5269:5269/tcp" # XMPP Server-to-Server
+      - "7777:7777/tcp" # File Transfer Proxy
+      - "127.0.0.1:9090:9090/tcp" # Admin Interface HTTP only on Docker Host
+      - "127.0.0.1:9091:9091/tcp" # Admin Interface HTTPS only on Docker Host
+    environment:
+      - VIRTUAL_HOST=${OPENFIRE_HOSTNAME}
+      - LETSENCRYPT_HOST=${OPENFIRE_HOSTNAME}
+      - LETSENCRYPT_EMAIL=mgmt@cyb3rwr3ck.net
+      - SSL_POLICY=Mozilla-Modern
     volumes:
-      - /srv/docker/volumes/openfire/data:/var/lib/openfire
-      - /srv/docker/volumes/openfire/logs:/var/log/openfire
-      #Modify for tls cert exchange to the container.
-      #The host folder MUST only include the openfire certificate and key to work with openfires' Certificate Manager plugin  
-      - /srv/docker/volumes/openfire/static:/var/static:ro
+      - /srv/docker/openfire/data:/var/lib/openfire
+      - /srv/docker/openfire/logs:/var/log/openfire
+      # This assumes that jwilder/nginx-proxy and jrcs/letsencrypt-nginx-proxy-companion
+      # are going to get the LE Certificates and put them in a directory on the docker host.
+      # We are then mounting that directory as volume into the container
+      - /srv/docker/openfire/certs:${OPENFIRE_DATA_DIR}/conf/security/hotdeploy
+    depends_on:
+      - openfire-db
+    networks:
+      - default
 
   openfire-db:
     container_name: openfire-db
@@ -21,8 +38,8 @@ services:
     command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
     restart: always
     volumes:
-      - /srv/docker/volumes/openfire/db:/var/lib/mysql
+      - /srv/docker/openfire/db:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=secret
     env_file:
-      - ./db.env
+      - ./openfire/db.env
