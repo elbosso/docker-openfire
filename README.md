@@ -1,78 +1,75 @@
-# gizmotronic/openfire:4.2.3
+# cyb3rwr3ck/openfire
 
 - [Introduction](#introduction)
-  - [Contributing](#contributing)
-  - [Issues](#issues)
-  - [Announcements](../../issues/1)
 - [Getting started](#getting-started)
   - [Installation](#installation)
   - [Quickstart](#quickstart)
-  - [Persistence](#persistence)
-  - [Logs](#logs)
+- [Docker Compose](#docker-compose)
+- [Persistence](#persistence)
+- [Logs](#logs)
 - [References](#references)
 
 # Introduction
 
-`Dockerfile` to create a [Docker](https://www.docker.com/) container image for [Openfire](http://www.igniterealtime.org/projects/openfire/).
+[Dockerfile](openfire/app/Dockerfile) to create a [Docker](https://www.docker.com/) container image for [Openfire](http://www.igniterealtime.org/projects/openfire/).
 
 Openfire is a real time collaboration (RTC) server licensed under the Open Source Apache License. It uses the only widely adopted open protocol for instant messaging, XMPP (also called Jabber). Openfire is incredibly easy to setup and administer, but offers rock-solid security and performance.
 
-This project is almost entirely identical to [sameersbn/openfire](/sameersbn/openfire).
-
-## Contributing
-
-If you find this image useful here's how you can help:
-
-- Send a pull request with your awesome features and bug fixes
-- Help users resolve their [issues](../../issues?q=is%3Aopen+is%3Aissue).
-- Support the development of this image with a [donation](http://www.damagehead.com/donate/)
-
-## Other issues
-
-Before reporting a bug please try updating Docker to the latest version and check if it resolves the issue. Refer to the Docker [installation guide](https://docs.docker.com/installation) for instructions.
-
-SELinux users should try disabling SELinux using the command `setenforce 0` to see if it resolves the issue.
-
-If the above recommendations do not help then [report your issue](../../issues/new) along with the following information:
-
-- Output of the `docker version` and `docker info` commands
-- The `docker run` command or `docker-compose.yml` used to start the image. Mask out the sensitive bits.
-- Please state if you are using [Boot2Docker](http://www.boot2docker.io), [VirtualBox](https://www.virtualbox.org), etc.
+This project is based on work by [sameersbn/openfire](/https://github.com/sameersbn/docker-openfire) and [gizmotronic/docker-openfire](https://github.com/gizmotronic/docker-openfire).
 
 # Getting started
 
 ## Installation
 
-Automated builds of the image are available on [Dockerhub](https://hub.docker.com/r/gizmotronic/openfire) and is the recommended method of installation.
+At the moment we do not maintain an automated build of the image. You'll have to build it yourself doing
 
 ```bash
-docker pull gizmotronic/openfire:4.2.3
+docker build -t openfire .
 ```
 
-Alternatively you can build the image yourself.
-
-```bash
-docker build -t gizmotronic/openfire github.com/gizmotronic/docker-openfire
-```
+from the [`./openfire/app/`](openfire/app/) directory (thats the one containing the Dockerfile)
 
 ## Quickstart
 
-Start Openfire using:
+Then you can run a container like this:
 
 ```bash
 docker run --name openfire -d --restart=always \
   --publish 9090:9090 --publish 5222:5222 --publish 7777:7777 \
   --volume /srv/docker/openfire:/var/lib/openfire \
-  gizmotronic/openfire:4.2.3
+  openfire:latest
 ```
 
-*Alternatively, you can use the sample [docker-compose.yml](docker-compose.yml) file to start the container using [Docker Compose](https://docs.docker.com/compose/)*
+# Docker Compose
+
+The main changes compared to the projects this one is derived from is the integration in a custom docker-compose environment.
+
+We also rely on external [jwilder/nginx-proxy](https://github.com/jwilder/nginx-proxy) and [JrCs/docker-letsencrypt-nginx-proxy-companion](https://github.com/JrCs/docker-letsencrypt-nginx-proxy-companion) containers that are maintained outside of this project as a seperate docker-compose setup.
+
+The [docker-compose.yml](docker-compose.yml) file is used to set up the `openfire` container using an external `mysql` container instead of using the embedded-db. (The option is still there, though...)
+
+First edit the [openfire.conf](openfire.conf) file (which is symlinked as [.env](.env) [Environment file](https://docs.docker.com/compose/env-file/)) and set your desired domain name. Leave the data dir as is, it's the same that ist configured inside the [Dockerfile](openfire/app/Dockerfile) and [openfire/app/entrypoint.sh](openfire/app/entrypoint.sh) Shell Script.
+
+```ApacheConf
+OPENFIRE_HOSTNAME=jabber.example.com
+OPENFIRE_DATA_DIR=/var/lib/openfire
+```
+
+then do
+
+```bash
+docker-compose up -d
+```
+
+Or for testing purposes stay attached to all containers by ommiting the `-d` flag.
 
 Point your browser to http://localhost:9090 and follow the setup procedure to complete the installation. The [Build A Free Jabber Server In 10 Minutes](https://www.youtube.com/watch?v=ytUB5qJm5HE#t=246s) video by HAKK5 should help you with the configuration and also introduce you to some of its features.
 
+When using the `mysql` database instead of the embedded one just use the container name `openfire-db:3600` to provide openfire with the db.
+
 ## Persistence
 
-For the Openfire to preserve its state across container shutdown and startup you should mount a volume at `/var/lib/openfire`.
+For Openfire to preserve its state across container shutdown and startup you should mount a volume at `/var/lib/openfire`.
 
 > *The [Quickstart](#quickstart) command already mounts a volume for persistence.*
 
@@ -106,40 +103,46 @@ docker exec -it openfire tail -f /var/log/openfire/info.log
 
 ## Upgrading
 
-To upgrade to newer releases:
+When a new version of openfire is released and you have setup persistence correctly just do the following from the project directory containing the [docker-compose.yml](docker-compose.yml):
 
-  1. Download the updated Docker image:
+1. stop and rmeove the containers and volumes
 
-  ```bash
-  docker pull gizmotronic/openfire:4.2.3
-  ```
+   ```bash
+   docker-compose down -v
+   ```
 
-  2. Stop the currently running image:
+   :exclamation: This will remove the `openfire-app` and `openfire-db` containers and the volumes (but not the directories on your host :wink: ) We can safely do so because we only have host mounted volumes. Leave out the `-v` flag if you added any named voumes inside your modified `docker-compose.yml` file.
 
-  ```bash
-  docker stop openfire
-  ```
+   Or you could do it more verbose:
 
-  3. Remove the stopped container
+   ```bash
+   docker-compose stop
+   docker-compose rm
+   docker volume ls
+   docker volume rm <openfire-data-volume-id>
+   docker volume rm <openfire-logs-volume-id>
+   docker volume rm <openfire-certs-volume-id>
+   docker volume rm <openfire-db-volume-id>
+   ```
 
-  ```bash
-  docker rm -v openfire
-  ```
+2. Bump the version number for Openfire in the [Dockerfile](openfire/app/Dockerfile) to the new release's version e.g.
+   ```Dockerfile
+   ENV OPENFIRE_VERSION=4.2.3 \
+   ```
 
-  4. Start the updated image
-
-  ```bash
-  docker run -name openfire -d \
-    [OPTIONS] \
-    gizmotronic/openfire:4.2.3
-  ```
+3. Bring the containers back up:
+   
+   ```bash
+   docker-compose up -d
+   ```
+   Because we have our docker-compose setup to build the image from the `./openfire/app/` directory it will setup a new openfire installation and pull all our persistent data back in from the host folders as volumes.
 
 ## Shell Access
 
 For debugging and maintenance purposes you may want access the containers shell. If you are using Docker version `1.3.0` or higher you can access a running containers shell by starting `bash` using `docker exec`:
 
 ```bash
-docker exec -it openfire bash
+docker exec -it openfire-app bash
 ```
 
 # References
