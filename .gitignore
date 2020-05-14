@@ -1,4 +1,5 @@
-*.deb
-*.sql
-/db/sql
-/volumes
+postgres.env
+openfire.conf
+*~
+databases
+logs

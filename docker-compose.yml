@@ -1,45 +1,28 @@
-version: '3'
-services:
-  openfire-app:
-    container_name: openfire-app
-    restart: always
-    build: ./openfire/app
-    # image: openfire:latest
-    # Alternatively set the image to a locally built image.
-    # In order for this to work, switch to the directory
-    # ./openfire/app and build with "docker build -t openfire ."
-    ports:
-      - "5222:5222/tcp" # XMPP Client Connection
-      - "5223:5223/tcp" # XMPP Client Connection over SSL
-      - "5269:5269/tcp" # XMPP Server-to-Server
-      - "7777:7777/tcp" # File Transfer Proxy
-      - "127.0.0.1:9090:9090/tcp" # Admin Interface HTTP only on Docker Host
-      - "127.0.0.1:9091:9091/tcp" # Admin Interface HTTPS only on Docker Host
-    environment:
-      - VIRTUAL_HOST=${OPENFIRE_HOSTNAME}
-      - LETSENCRYPT_HOST=${OPENFIRE_HOSTNAME}
-      - LETSENCRYPT_EMAIL=mgmt@cyb3rwr3ck.net
-      - SSL_POLICY=Mozilla-Modern
-    volumes:
-      - /srv/docker/openfire/data:/var/lib/openfire
-      - /srv/docker/openfire/logs:/var/log/openfire
-      # This assumes that jwilder/nginx-proxy and jrcs/letsencrypt-nginx-proxy-companion
-      # are going to get the LE Certificates and put them in a directory on the docker host.
-      # We are then mounting that directory as volume into the container
-      - /srv/docker/openfire/certs:${OPENFIRE_DATA_DIR}/conf/security/hotdeploy
-    depends_on:
-      - openfire-db
-    networks:
-      - default
+version: '2'
 
-  openfire-db:
-    container_name: openfire-db
-    image: mariadb
-    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
-    restart: always
+services:
+  openfire:
+    restart: unless-stopped
+    image: gizmotronic/openfire:latest
+    hostname: jabber.example.com
+    ports:
+      - 9090:9090
+      - 5222:5222
+      - 7777:7777
     volumes:
-      - /srv/docker/openfire/db:/var/lib/mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=secret
+      - ./databases/openfire:/var/lib/openfire
+      - ./logs/openfire:/var/log/openfire/
+    links:
+      - postgres:db
+
+  postgres:
+    restart: unless-stopped
+    image: postgres
+    ports:
+      - 5432:5432
     env_file:
-      - ./openfire/db.env
+      - postgres.env
+    volumes:
+      - ./databases/postgresql:/var/lib/postgresql/data/pgdata
+      - ./logs/postgresql:/var/log/postgresql
+
