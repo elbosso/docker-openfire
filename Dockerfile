@@ -4,7 +4,7 @@ MAINTAINER gizmotronic@gmail.com
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo wget openjdk-11-jre 
 
-ENV OPENFIRE_VERSION=4.4.0 \
+ENV OPENFIRE_VERSION=4.5.1 \
     OPENFIRE_USER=openfire \
     OPENFIRE_DATA_DIR=/var/lib/openfire \
     OPENFIRE_LOG_DIR=/var/log/openfire
