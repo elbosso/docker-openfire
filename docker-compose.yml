@@ -1,23 +1,46 @@
 version: '2'
 
 services:
-  openfire:
+  pixmpp:
     restart: unless-stopped
-    image: gizmotronic/openfire:latest
-    hostname: jabber.example.com
+    build:
+      context: .
+#    image: gizmotronic/openfire:latest
+    container_name: pixmpp
+    hostname: pixmpp
+    env_file:
+      - openfire.conf
     ports:
       - 9090:9090
       - 5222:5222
       - 7777:7777
+#      - 3478:3478
+#      - 3479:3479
+#      - 5223:5223
+#      - 5229:5229
+#      - 5275:5275
+#      - 5276:5276
+#      - 5262:5262
+
     volumes:
       - ./databases/openfire:/var/lib/openfire
       - ./logs/openfire:/var/log/openfire/
     links:
-      - postgres:db
+      - openfire_db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pixmpp.rule=Host(`pixmpp.pi-docker.lab`)"
+      - "traefik.http.services.pixmpp.loadbalancer.server.port=9090"
+      - "traefik.docker.network=traefik_proxy"
+    networks:
+      - default
+      - traefik_proxy
 
-  postgres:
+  openfire_db:
     restart: unless-stopped
     image: postgres
+    container_name: openfire_db
+    hostname: openfire_db
     ports:
       - 5432:5432
     env_file:
@@ -25,4 +48,11 @@ services:
     volumes:
       - ./databases/postgresql:/var/lib/postgresql/data/pgdata
       - ./logs/postgresql:/var/log/postgresql
+    networks:
+      - default
+
+networks:
+  traefik_proxy:
+    external:
+      name: pi_traefik_proxy
 
